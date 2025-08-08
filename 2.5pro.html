@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Cadran Rapide Intelligent</title>
+
+    <style>
+        /* ==========================================================================
+           1. VARIABLES & STYLES DE BASE
+           ========================================================================== */
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --accent-color: #f6d365;
+            --accent-hover: #f1c40f;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --light-bg: #f0f2f5;
+            --dark-text: #333;
+            --light-text: #fff;
+            --border-radius-sm: 5px;
+            --border-radius-md: 8px;
+            --border-radius-lg: 12px;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            background-color: var(--light-bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            color: var(--dark-text);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            transition: background-color 0.5s ease;
+            text-align: center;
+        }
+
+        /* ==========================================================================
+           2. EN-TÊTE & CONTRÔLES
+           ========================================================================== */
+        .page-header {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .page-header button {
+            background-color: var(--primary-color);
+            color: var(--light-text);
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--border-radius-md);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .page-header button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .page-header button:active {
+            transform: scale(0.98);
+        }
+
+        .page-header button.ai-button {
+            background-color: var(--accent-color);
+            color: var(--dark-text);
+        }
+
+        .page-header button.ai-button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* ==========================================================================
+           3. GRILLE DES FAVORIS
+           ========================================================================== */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            padding: 10px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .speed-dial-item {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 4px 6px var(--shadow-color);
+            text-decoration: none;
+            color: var(--dark-text);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 10px;
+            min-height: 120px;
+            position: relative;
+            cursor: grab;
+            overflow: hidden;
+        }
+
+        .speed-dial-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .speed-dial-icon {
+            width: 64px;
+            height: 64px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .speed-dial-icon.default-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--light-text);
+            background-color: #ccc;
+        }
+
+        .speed-dial-title {
+            margin-top: 10px;
+            font-size: 1rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 90%;
+        }
+
+        .item-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .speed-dial-item:hover .item-actions,
+        .speed-dial-item:focus-within .item-actions {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .action-button {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        .action-button:hover {
+            background-color: rgba(230, 230, 230, 0.9);
+        }
+
+        /* ==========================================================================
+           4. MODALES
+           ========================================================================== */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show-modal {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--light-text);
+            padding: 25px;
+            border-radius: var(--border-radius-lg);
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+            text-align: left;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .close-modal-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #aaa;
+            background: none;
+            border: none;
+            padding: 0;
+            line-height: 1;
+        }
+        .close-modal-btn:hover {
+            color: var(--dark-text);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-content form div {
+            margin-bottom: 15px;
+        }
+
+        .modal-content label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .modal-content input[type="text"] {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        .modal-content button[type="submit"] {
+            width: 100%;
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+
+        /* --- Styles spécifiques aux modales --- */
+        #aiGenModal button[type="submit"] {
+            background-color: var(--accent-color);
+            color: var(--dark-text);
+        }
+
+        /* ==========================================================================
+           5. LOADER, NOTIFICATIONS & AUTRES
+           ========================================================================== */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid var(--primary-color);
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto 0;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #messageBox {
+            position: fixed;
+            bottom: -100px; /* Caché par défaut */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--dark-text);
+            color: var(--light-text);
+            padding: 15px 25px;
+            border-radius: var(--border-radius-md);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            opacity: 0;
+            transition: bottom 0.5s ease, opacity 0.5s ease;
+            max-width: 90%;
+        }
+
+        #messageBox.show {
+            bottom: 20px;
+            opacity: 1;
+        }
+        
+        #wallpaper-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+    
+        .color-thumbnail {
+            width: 100%;
+            height: 50px;
+            border-radius: var(--border-radius-md);
+            cursor: pointer;
+            border: 3px solid transparent;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+    
+        .color-thumbnail.active,
+        .color-thumbnail:hover {
+            border-color: var(--primary-color);
+        }
+
+        /* ==========================================================================
+           6. RESPONSIVE DESIGN
+           ========================================================================== */
+        @media (min-width: 768px) {
+            .grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 20px;
+            }
+            .speed-dial-item:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="page-header">
+        <button id="addSiteBtn">Ajouter un site</button>
+        <button id="changeBgBtn">Fonds d'écran</button>
+        <button id="importBtn">Importer</button>
+        <button id="aiGenSiteBtn" class="ai-button">Générer des idées ✨</button>
+    </header>
+
+    <main class="grid-container" id="dial-container"></main>
+
+    <div id="addSiteModal" class="modal" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close-modal-btn" aria-label="Fermer la modale">&times;</button>
+            <h3 id="modalTitle">Ajouter un site</h3>
+            <form id="siteForm">
+                <input type="hidden" id="siteIndex">
+                <div>
+                    <label for="siteTitle">Titre du site (facultatif)</label>
+                    <input type="text" id="siteTitle" placeholder="Ex: Google Actualités">
+                </div>
+                <div>
+                    <label for="siteUrl">URL du site</label>
+                    <input type="text" id="siteUrl" placeholder="www.google.com" required>
+                </div>
+                <div>
+                    <label for="siteIconUrl">URL de l'icône (facultatif)</label>
+                    <input type="text" id="siteIconUrl" placeholder="URL d'une image .png ou .ico">
+                </div>
+                <button type="submit">Sauvegarder</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="wallpaperModal" class="modal" role="dialog" aria-labelledby="wallpaperModalTitle" aria-hidden="true">
+        <div class="modal-content">
+            <button class="close-modal-btn" aria-label="Fermer la modale">&times;</button>
+            <h3 id="wallpaperModalTitle">Changer le fond d'écran</h3>
+            <div id="wallpaper-gallery"></div>
+        </div>
+    </div>
+
+    <div id="messageBox" role="status" aria-live="polite"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // ==========================================================================
+            // 2. SÉLECTION DES ÉLÉMENTS DU DOM
+            // ==========================================================================
+            const dialContainer = document.getElementById('dial-container');
+            const addSiteModal = document.getElementById('addSiteModal');
+            const wallpaperModal = document.getElementById('wallpaperModal');
+            const siteForm = document.getElementById('siteForm');
+            const siteIndexInput = document.getElementById('siteIndex');
+            const siteTitleInput = document.getElementById('siteTitle');
+            const siteUrlInput = document.getElementById('siteUrl');
+            const siteIconUrlInput = document.getElementById('siteIconUrl');
+            const modalTitle = document.getElementById('modalTitle');
+            const wallpaperGallery = document.getElementById('wallpaper-gallery');
+
+            // ==========================================================================
+            // 3. DONNÉES & INITIALISATION
+            // ==========================================================================
+            let sites = [];
+            let currentBg = '';
+            let lastFocusedElement = null;
+            let draggedItemIndex = null;
+            
+            const defaultSites = [
+                { title: "Google", url: "https://www.google.com", customIconUrl: "" },
+                { title: "YouTube", url: "https://www.youtube.com", customIconUrl: "" },
+                { title: "Twitch", url: "https://www.twitch.tv", customIconUrl: "" },
+                { title: "", url: "https://github.com", customIconUrl: "" }, // Exemple sans titre
+            ];
+            
+            const defaultWallpapers = [
+                '#f0f2f5', '#ffffff', '#2c3e50', '#34495e', '#1abc9c', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#e74c3c'
+            ];
+
+            function initialize() {
+                sites = JSON.parse(localStorage.getItem('speedDialSites')) || defaultSites;
+                currentBg = localStorage.getItem('speedDialBg') || defaultWallpapers[0];
+                setWallpaper(currentBg);
+                renderSites();
+                setupEventListeners();
+            }
+
+            // ==========================================================================
+            // 4. LOGIQUE DES MODALES (AVEC GESTION DE L'ACCESSIBILITÉ)
+            // ==========================================================================
+            function openModal(modalElement, onOpenCallback) {
+                lastFocusedElement = document.activeElement;
+                modalElement.style.display = 'flex';
+                modalElement.setAttribute('aria-hidden', 'false');
+                if (onOpenCallback) onOpenCallback();
+                const firstFocusableElement = modalElement.querySelector('input, button, [href]');
+                if (firstFocusableElement) setTimeout(() => firstFocusableElement.focus(), 50);
+            }
+
+            function closeModal(modalElement) {
+                modalElement.style.display = 'none';
+                modalElement.setAttribute('aria-hidden', 'true');
+                if (lastFocusedElement) lastFocusedElement.focus();
+            }
+
+            // ==========================================================================
+            // 5. FONCTIONS PRINCIPALES
+            // ==========================================================================
+
+            /**
+             * NOUVELLE FONCTION : Génère un titre à partir d'une URL.
+             * @param {string} urlString - L'URL du site.
+             * @returns {string} Un titre propre (ex: "Google") ou un fallback.
+             */
+            function generateTitleFromUrl(urlString) {
+                if (!urlString) return 'Lien';
+                try {
+                    let hostname = new URL(urlString).hostname; // "www.google.com"
+                    hostname = hostname.replace(/^www\./, ''); // "google.com"
+                    const name = hostname.split('.')[0];
+                    return name.charAt(0).toUpperCase() + name.slice(1);
+                } catch (e) {
+                    return 'Lien'; // Fallback pour les URL invalides
+                }
+            }
+
+            function renderSites() {
+                dialContainer.innerHTML = '';
+                sites.forEach((site, index) => {
+                    // MODIFICATION CLÉ : Utilise la nouvelle fonction si le titre est manquant
+                    const titleToDisplay = site.title || generateTitleFromUrl(site.url);
+
+                    const item = document.createElement('a');
+                    item.href = site.url;
+                    item.className = 'speed-dial-item';
+                    item.dataset.index = index;
+                    item.draggable = true;
+                    item.append(
+                        createIconElement(titleToDisplay, site.url, site.customIconUrl),
+                        createTitleElement(titleToDisplay),
+                        createActionsElement(index, titleToDisplay)
+                    );
+                    dialContainer.appendChild(item);
+                });
+                addDragAndDropListeners();
+            }
+
+            function createTitleElement(title) {
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'speed-dial-title';
+                titleDiv.textContent = title;
+                return titleDiv;
+            }
+
+            function createActionsElement(index, title) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'item-actions';
+                const editBtn = document.createElement('button');
+                editBtn.className = 'action-button';
+                editBtn.innerHTML = '&#9998;';
+                editBtn.setAttribute('aria-label', `Modifier ${title}`);
+                editBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); openEditModal(index); };
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-button';
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.setAttribute('aria-label', `Supprimer ${title}`);
+                deleteBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); deleteSite(index); };
+                actionsDiv.append(editBtn, deleteBtn);
+                return actionsDiv;
+            }
+
+            function createIconElement(siteTitle, siteUrl, customIconUrl) {
+                const fallbackIcon = () => {
+                    const div = document.createElement('div');
+                    div.className = 'speed-dial-icon default-icon';
+                    div.textContent = (siteTitle || '?').charAt(0).toUpperCase();
+                    div.style.backgroundColor = `hsl(${(siteTitle.length * 20) % 360}, 60%, 70%)`;
+                    return div;
+                };
+
+                try {
+                    let hostname = new URL(siteUrl).hostname;
+                    const img = document.createElement('img');
+                    img.className = 'speed-dial-icon';
+                    img.alt = `Icône de ${siteTitle}`;
+                    const urlsToTry = [
+                        customIconUrl,
+                        `https://logo.clearbit.com/${hostname}`,
+                        `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`
+                    ].filter(Boolean);
+                    let currentAttempt = 0;
+                    const tryNextUrl = () => {
+                        if (currentAttempt < urlsToTry.length) {
+                            img.src = urlsToTry[currentAttempt++];
+                        } else {
+                            if (img.parentNode) img.parentNode.replaceChild(fallbackIcon(), img);
+                        }
+                    };
+                    img.onerror = tryNextUrl;
+                    tryNextUrl();
+                    return img;
+                } catch (e) {
+                    return fallbackIcon();
+                }
+            }
+            
+            function deleteSite(index) {
+                const siteTitle = sites[index].title || generateTitleFromUrl(sites[index].url);
+                if (confirm(`Êtes-vous sûr de vouloir supprimer "${siteTitle}" ?`)) {
+                    sites.splice(index, 1);
+                    localStorage.setItem('speedDialSites', JSON.stringify(sites));
+                    renderSites();
+                }
+            }
+
+            function openEditModal(index) {
+                openModal(addSiteModal, () => {
+                    const site = sites[index];
+                    modalTitle.textContent = 'Modifier un site';
+                    siteIndexInput.value = index;
+                    siteTitleInput.value = site.title; // Affiche le titre enregistré (peut être vide)
+                    siteUrlInput.value = site.url;
+                    siteIconUrlInput.value = site.customIconUrl || '';
+                });
+            }
+
+            function setWallpaper(value) {
+                if (value && value.startsWith('#')) {
+                    document.body.style.backgroundImage = 'none';
+                    document.body.style.backgroundColor = value;
+                } else {
+                    document.body.style.backgroundImage = `url('${value}')`;
+                }
+                localStorage.setItem('speedDialBg', value);
+                currentBg = value;
+            }
+
+            function renderWallpapers() {
+                wallpaperGallery.innerHTML = '';
+                defaultWallpapers.forEach(color => {
+                    const div = document.createElement('div');
+                    div.className = 'color-thumbnail';
+                    div.style.backgroundColor = color;
+                    if (color === currentBg) div.classList.add('active');
+                    div.onclick = () => {
+                        setWallpaper(color);
+                        closeModal(wallpaperModal);
+                    };
+                    wallpaperGallery.appendChild(div);
+                });
+            }
+
+            function addDragAndDropListeners() {
+                const items = document.querySelectorAll('.speed-dial-item');
+                items.forEach(item => {
+                    item.addEventListener('dragstart', (e) => {
+                        draggedItemIndex = parseInt(e.currentTarget.dataset.index, 10);
+                        setTimeout(() => e.currentTarget.classList.add('dragging'), 0);
+                    });
+                    item.addEventListener('dragend', (e) => e.currentTarget.classList.remove('dragging'));
+                    item.addEventListener('dragover', (e) => e.preventDefault());
+                    item.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        const targetIndex = parseInt(e.currentTarget.dataset.index, 10);
+                        if (draggedItemIndex !== null && draggedItemIndex !== targetIndex) {
+                            const movedItem = sites.splice(draggedItemIndex, 1)[0];
+                            sites.splice(targetIndex, 0, movedItem);
+                            localStorage.setItem('speedDialSites', JSON.stringify(sites));
+                            renderSites();
+                        }
+                    });
+                });
+            }
+
+            // ==========================================================================
+            // 6. SETUP DES ÉCOUTEURS D'ÉVÉNEMENTS
+            // ==========================================================================
+            function setupEventListeners() {
+                document.getElementById('addSiteBtn').addEventListener('click', () => {
+                    openModal(addSiteModal, () => {
+                        modalTitle.textContent = 'Ajouter un site';
+                        siteForm.reset();
+                        siteIndexInput.value = '';
+                    });
+                });
+
+                document.getElementById('changeBgBtn').addEventListener('click', () => {
+                    openModal(wallpaperModal, renderWallpapers);
+                });
+                
+                document.getElementById('importBtn').addEventListener('click', () => alert("Fonctionnalité à venir !"));
+                document.getElementById('aiGenSiteBtn').addEventListener('click', () => alert("Fonctionnalité à venir !"));
+
+                siteForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    let url = siteUrlInput.value.trim();
+                    if (url && !/^https?:\/\//i.test(url)) {
+                        url = 'https://' + url;
+                    }
+                    const siteData = {
+                        title: siteTitleInput.value.trim(),
+                        url: url,
+                        customIconUrl: siteIconUrlInput.value.trim()
+                    };
+                    const index = siteIndexInput.value;
+                    if (index === '') {
+                        sites.push(siteData);
+                    } else {
+                        sites[index] = siteData;
+                    }
+                    localStorage.setItem('speedDialSites', JSON.stringify(sites));
+                    renderSites();
+                    closeModal(addSiteModal);
+                });
+                
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.addEventListener('click', e => { if (e.target === modal) closeModal(modal); });
+                    const closeBtn = modal.querySelector('.close-modal-btn');
+                    if (closeBtn) closeBtn.addEventListener('click', () => closeModal(modal));
+                });
+            }
+
+            // --- Lancement de l'application ---
+            initialize();
+        });
+    </script>
+</body>
+</html>
